@@ -1,6 +1,8 @@
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -9,15 +11,21 @@ public class Main {
         System.out.println("Listening on port 6379...");
 
         Socket client = serverSocket.accept();
-        System.out.println("Client connected: " + client.getRemoteSocketAddress());
+        System.out.println("Client connected");
 
         InputStream in = client.getInputStream();
+        OutputStream out = client.getOutputStream();
         byte[] buffer = new byte[1024];
-        int bytesRead = in.read(buffer);
 
-        String raw = new String(buffer, 0, bytesRead);
-        System.out.println("Raw bytes received:");
-        System.out.println(raw.replace("\r", "\\r").replace("\n", "\\n"));
+        while (true) {
+            int bytesRead = in.read(buffer);
+            if (bytesRead == -1) {
+                System.out.println("Client disconnected");
+                break;
+            }
+            out.write("+PONG\r\n".getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        }
 
         client.close();
         serverSocket.close();
