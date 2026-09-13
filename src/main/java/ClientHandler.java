@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientHandler implements Runnable {
 
     private Socket socket;
-    private static final Map<String, String> store = new ConcurrentHashMap<>();
+    private static final Map<String, Entry> store = new ConcurrentHashMap<>();
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -38,14 +38,21 @@ public class ClientHandler implements Runnable {
                     String response = "$" + value.length() + "\r\n" + value + "\r\n";
                     out.write(response.getBytes(StandardCharsets.UTF_8));
                 } else if (name.equals("SET")) {
-                    store.put(command.get(1), command.get(2));
+                    long expiresAt = -1;
+                    if (command.size() > 4 && command.get(3).toUpperCase().equals("PX")) {
+                        expiresAt = System.currentTimeMillis() + Long.parseLong(command.get(4));
+                    }
+                    store.put(command.get(1), new Entry(command.get(2), expiresAt));
                     out.write("+OK\r\n".getBytes(StandardCharsets.UTF_8));
                 } else if (name.equals("GET")) {
-                    String value = store.get(command.get(1));
-                    if (value == null) {
+                    Entry entry = store.get(command.get(1));
+                    if (entry == null) {
+                        out.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
+                    } else if (entry.expiresAt != -1 && System.currentTimeMillis() > entry.expiresAt) {
+                        store.remove(command.get(1));
                         out.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
                     } else {
-                        String response = "$" + value.length() + "\r\n" + value + "\r\n";
+                        String response = "$" + entry.value.length() + "\r\n" + entry.value + "\r\n";
                         out.write(response.getBytes(StandardCharsets.UTF_8));
                     }
                 } else {
