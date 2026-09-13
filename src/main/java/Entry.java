@@ -7,4 +7,10 @@ public class Entry {
         this.expiresAt = expiresAt;
 
     }
+
+    public boolean isExpired(){
+    
+        
+        return expiresAt != -1 && System.currentTimeMillis() > expiresAt;
+    }
 }

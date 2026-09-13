@@ -10,13 +10,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientHandler implements Runnable {
 
     private Socket socket;
-    private static final Map<String, Entry> store = new ConcurrentHashMap<>();
+    static final Map<String, Entry> store = new ConcurrentHashMap<>();
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
     }
 
-    @Override
+        @Override
     public void run() {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -45,14 +45,11 @@ public class ClientHandler implements Runnable {
                     store.put(command.get(1), new Entry(command.get(2), expiresAt));
                     out.write("+OK\r\n".getBytes(StandardCharsets.UTF_8));
                 } else if (name.equals("GET")) {
-                    Entry entry = store.get(command.get(1));
-                    if (entry == null) {
-                        out.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
-                    } else if (entry.expiresAt != -1 && System.currentTimeMillis() > entry.expiresAt) {
-                        store.remove(command.get(1));
+                    String value = lookup(command.get(1));
+                    if (value == null) {
                         out.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
                     } else {
-                        String response = "$" + entry.value.length() + "\r\n" + entry.value + "\r\n";
+                        String response = "$" + value.length() + "\r\n" + value + "\r\n";
                         out.write(response.getBytes(StandardCharsets.UTF_8));
                     }
                 } else {
@@ -66,5 +63,16 @@ public class ClientHandler implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+        static String lookup(String key) {
+        Entry entry = store.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.isExpired()) {
+            store.remove(key);
+            return null;
+        }
+        return entry.value;
     }
 }
